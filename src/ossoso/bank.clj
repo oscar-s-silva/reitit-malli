@@ -1,5 +1,5 @@
-(ns example.bank
-  (:require [example.bank-db :as db]
+(ns ossoso.bank
+  (:require [ossoso.bank-db :as db]
             [clojure.set :refer [rename-keys]]
             [clojure.core.match :refer [match]])
   (:import java.util.UUID))

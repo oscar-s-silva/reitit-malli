@@ -1,12 +1,12 @@
-(ns example.bank-test-gen
+(ns ossoso.bank-test-gen
   (:require [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop]
             [clojure.test.check.clojure-test :refer [defspec]]
             [clojure.test :refer [deftest is testing]]
             [xtdb.api :as xt]
-            [example.bank :as bank]
-            [example.bank-db :as db]
-            [example.util :as util]))
+            [ossoso.bank :as bank]
+            [ossoso.bank-db :as db]
+            [ossoso.util :as util]))
 
 (declare ^:dynamic *node*)
 

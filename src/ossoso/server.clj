@@ -1,4 +1,4 @@
-(ns example.server
+(ns ossoso.server
   (:require [reitit.ring :as ring]
             [reitit.coercion.malli]
             [reitit.ring.malli]
@@ -10,11 +10,8 @@
             [reitit.ring.middleware.exception :as exception]
             [reitit.ring.middleware.multipart :as multipart]
             [reitit.ring.middleware.parameters :as parameters]
-    ;       [reitit.ring.middleware.dev :as dev]
-    ;       [reitit.ring.spec :as spec]
-    ;       [spec-tools.spell :as spell]
             [ring.adapter.jetty :as jetty]
-            [example.bank :as bank]
+            [ossoso.bank :as bank]
             [muuntaja.core :as m]
             [clojure.java.io :as io]
             ;; malli.core
@@ -30,10 +27,9 @@
    (ring/router
     [["/swagger.json"
       {:get {:no-doc true
-             :swagger {:info {:title "my-api"
+             :swagger {:info {:title "bank api"
                               :description "with [malli](https://github.com/metosin/malli) and reitit-ring"}
-                       :tags [{:name "files", :description "file api"}
-                              {:name "math", :description "math api"}]}
+                       :tags [{:name "banking", :description "bank actions"}]}
              :handler (swagger/create-swagger-handler)}}]
      [""
       {:swagger {:tags ["banking"]}}
@@ -149,13 +145,10 @@
                                                  :credit 100,
                                                  :description "deposit"}]}})}}]]]]
 
-    {;;:reitit.middleware/transform dev/print-request-diffs ;; pretty diffs
-       ;;:validate spec/validate ;; enable spec validation for route data
-       ;;:reitit.spec/wrap spell/closed ;; strict top-level validation
-     :exception pretty/exception
+    {:exception pretty/exception
      :data {:coercion (reitit.coercion.malli/create
                        {;; set of keys to include in error messages
-                        :error-keys #{#_:type :coercion :in :schema :value :errors :humanized #_:transformed}
+                        :error-keys #{:coercion :in :schema :value :errors :humanized #_:transformed}
                            ;; schema identity function (default: close all map schemas)
                         :compile mu/closed-schema
                            ;; strip-extra-keys (effects only predefined transformers)
@@ -219,9 +212,7 @@
 
 (comment
   (start)
-;; das
   (stop)
-;; asd
   (do (stop)
       (start))
   )

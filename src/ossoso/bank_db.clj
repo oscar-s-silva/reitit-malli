@@ -1,11 +1,7 @@
-(ns example.bank-db
+(ns ossoso.bank-db
   (:require [xtdb.api :as xt]
             [clojure.set :refer [rename-keys]])
   (:import java.util.UUID))
-
-;; TODO make node configuration persistent
-;; (def node (xt/start-node {}))
-
 
 (def global-reserve-id
   #uuid "00000000-0000-1000-8000-000000000000")
@@ -40,7 +36,7 @@
    (let [tx (xt/submit-tx
                   node
                   (:txops tx-data))]
-     (assoc tx-data :node node :tx tx)))
+     (assoc tx-data :tx tx)))
 
 (defn sync-put-account!
   [& [node & -args]]
