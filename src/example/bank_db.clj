@@ -14,7 +14,7 @@
 
 (defn ->sync
   "blocks until tx has been indexed and returns data or gives a time out exception."
-  [{node :node tx :tx data :data}]
+  [{:keys [tx data]} node]
   (and (xt/await-tx node tx) data))
 
 (defn sync-get-entity!
@@ -29,11 +29,12 @@
                  :account/balance 0}]
     {:txops [[:xtdb.api/put account]] :data account}))
 
-(defn append-audit-txop [tx-data kind args]
+(defn append-audit-txop [tx-data kind args & {:as add-kvs}]
   (update tx-data :txops
-          conj [:xtdb.api/put {:xt/id audit-log-id
-                               ::tx-kind kind
-                               ::tx-args [args]}]))
+          conj [:xtdb.api/put (merge {:xt/id audit-log-id
+                                      ::tx-kind kind
+                                      ::tx-args args}
+                                     add-kvs)]))
 
 (defn xact [tx-data node]
    (let [tx (xt/submit-tx
@@ -46,7 +47,7 @@
   (-> (apply put-account-tx-data -args)
       ;; (append-audit-txop :put-account -args)
       (xact node)
-      (->sync)))
+      (->sync node)))
 
 (defn transfer-txop
   [{:keys [correlation-id sender-id recipient-id amount kind] :as arg-m}]
@@ -61,15 +62,19 @@
 
 (defn sync-transfer!
   [node arg-m]
+  ;; correlation id corresponds to single transfer
   (let [correlation-id (java.util.UUID/randomUUID)]
     (-> (transfer-txop (assoc arg-m :correlation-id correlation-id))
-        (append-audit-txop (:kind arg-m) [arg-m])
+        (append-audit-txop (:kind arg-m) [arg-m] :correlation-id correlation-id)
         (xact node)
-        (->sync)
+        (->sync node)
         (-|succeeded node correlation-id))))
 
-(defn full-audit-log! [node]
-  (xt/entity-history (xt/db node) ::audit-log :asc {:with-docs? true}))
+(defn full-audit-log! [node & {:keys [rm-ex?]}]
+  (let [db (xt/db node)]
+    (cond->> (xt/entity-history (xt/db node) ::audit-log :asc {:with-docs? true})
+      rm-ex?
+      (remove (comp (partial xtdb.api/entity db) :correlation-id :xtdb.api/doc)))))
 
 (def ^:private -transfer-amount
   "transaction function for transfering amount between accounts

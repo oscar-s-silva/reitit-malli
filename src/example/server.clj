@@ -17,14 +17,15 @@
             [example.bank :as bank]
             [muuntaja.core :as m]
             [clojure.java.io :as io]
-            malli.core
+            ;; malli.core
             [malli.util :as mu]
+            [malli.experimental.lite :as l]
             [xtdb.api :as xt]))
 
-;; TODO make node persist
-;; (def node (xt/start-node {}))
+(defonce server* (atom nil))
+(defonce xtdb-node* (atom nil))
 
-(def app
+(defn app [node]
   (ring/ring-handler
    (ring/router
     [["/swagger.json"
@@ -34,29 +35,6 @@
                        :tags [{:name "files", :description "file api"}
                               {:name "math", :description "math api"}]}
              :handler (swagger/create-swagger-handler)}}]
-
-     #_["/files"
-        {:swagger {:tags ["files"]}}
-
-        ["/upload"
-         {:post {:summary "upload a file"
-                 :parameters {:multipart [:map [:file reitit.ring.malli/temp-file-part]]}
-                 :responses {200 {:body [:map [:name string?] [:size int?]]}}
-                 :handler (fn [{{{:keys [file]} :multipart} :parameters}]
-                            {:status 200
-                             :body {:name (:filename file)
-                                    :size (:size file)}})}}]
-
-        ["/download"
-         {:get {:summary "downloads a file"
-                :swagger {:produces ["image/png"]}
-                :handler (fn [_]
-                           {:status 200
-                            :headers {"Content-Type" "image/png"}
-                            :body (-> "reitit.png"
-                                      (io/resource)
-                                      (io/input-stream))})}}]]
-
      [""
       {:swagger {:tags ["banking"]}}
 
@@ -70,7 +48,7 @@
                :handler (fn [{{{:keys [name]} :body} :parameters}]
                            ;; TODO implement logic
 
-                          (let [account {} #_(bank/create-account node name)]
+                          (let [account (bank/create-account node name)]
                             {:status 200
                              :body account}))}}]
       ["/account/:id"
@@ -84,7 +62,7 @@
                                             :balance (every-pred int (comp not neg?))}]}}
               :handler (fn [{{{account-id :id} :path} :parameters}]
                            ;; TODO implement logic
-                         (let [account (bank/view-account account-id)]
+                         (let [account (bank/view-account node account-id)]
                            {:status 200
                             :body account}))}}
        ["/deposit"
@@ -97,7 +75,7 @@
                                               :name string?,
                                               :balance nat-int?}]}}
                 :handler (fn [{{{:keys [amount]} :body account-id :id} :parameters}]
-                           (let [account (bank/deposit account-id amount)]
+                           (let [account (bank/deposit node account-id amount)]
                              {:status 200
                               :body account}))}}]
        ["/withdraw"
@@ -110,7 +88,7 @@
                                               :name string?,
                                               :balance nat-int?}]}}
                 :handler (fn [{{{:keys [amount]} :body account-id :id} :parameters}]
-                           (let [account (bank/withdraw account-id amount)]
+                           (let [account (bank/withdraw node account-id amount)]
                              {:status 200
                               :body account}))}}]
        ["/send"
@@ -129,37 +107,47 @@
                                   [:balance nat-int?]]}}}
          :handler (fn [{{{amount :amount recipient-id :account-number} :body sender-id :id} :parameters}]
 
-                    (let [account (bank/transfer sender-id recipient-id amount)]
+                    (let [account (bank/transfer node sender-id recipient-id amount)]
                       {:status 200
                        :body {:name "Mr. Black"
                               :account-number 1
                               :balance 45}}))}]
        ["/audit"
-        {:post {:summary "Retrieve account audit log"
-                :responses {200 {:body
-                                 [:sequential
-                                  [:or
-                                   [:map
-                                    [:sequence pos-int?]
-                                    [:debit pos-int?]
-                                    [:description string?]]
-                                   [:map
-                                    [:sequence pos-int?]
-                                    [:credit pos-int?]
-                                    [:description string?]]]]}}
-                :handler (fn [{{{id :id} :path} :parameters}]
-                           [{:sequence 3,
-                             :debit 20,
-                             :description "withdraw"},
-                            {:sequence 2,
-                             :credit 10,
-                             :description "receive from *800"},
-                            {:sequence 1,
-                             :debit 5,
-                             :description "send to *900"},
-                            {:sequence 0,
-                             :credit 100,
-                             :description "deposit"}])}}]]]]
+        {:get {:summary "Retrieve account audit log"
+               :responses {200 {:body
+                                (l/vector
+                                 (l/or {:sequence nat-int?
+                                        :credit pos-int?
+                                        :description string?}
+                                       {:sequence nat-int?
+                                        :debit pos-int?
+                                        :description string?}))
+                                ;; this doesn't work for some reason
+                                #_[:map
+                                   [:audit-trail
+                                    [:vector [:or
+                                              [:map
+                                               [:sequence nat-int?]
+                                               [:credit pos-int?]
+                                               [:description string?]]
+                                              [:map
+                                               [:sequence nat-int?]
+                                               [:debit pos-int?]
+                                               [:description string?]]]]]]}}
+               :handler (fn [{{{id :id} :path} :parameters}]
+                          {:status 200
+                           :body {:audit-trail [{:sequence 3,
+                                                 :debit 20,
+                                                 :description "withdraw"},
+                                                {:sequence 2,
+                                                 :credit 10,
+                                                 :description "receive from *800"},
+                                                {:sequence 1,
+                                                 :debit 5,
+                                                 :description "send to *900"},
+                                                {:sequence 0,
+                                                 :credit 100,
+                                                 :description "deposit"}]}})}}]]]]
 
     {;;:reitit.middleware/transform dev/print-request-diffs ;; pretty diffs
        ;;:validate spec/validate ;; enable spec validation for route data
@@ -202,9 +190,38 @@
                :operationsSorter "alpha"}})
     (ring/create-default-handler))))
 
-(defn start []
-  (jetty/run-jetty #'app {:port 3000, :join? false})
+(defn start-xtdb!
+  "Use RocksDB for tx-log, document-store, and index-store
+  source from https://docs.xtdb.com/guides/quickstart/"
+  []
+  (letfn [(kv-store [dir]
+            {:kv-store {:xtdb/module 'xtdb.rocksdb/->kv-store
+                        :db-dir (io/file dir)
+                        :sync? true}})]
+    (xt/start-node
+     {:xtdb/tx-log (kv-store "data/dev/tx-log")
+      :xtdb/document-store (kv-store "data/dev/doc-store")
+      :xtdb/index-store (kv-store "data/dev/index-store")})))
+
+(defn start-jetty! [& {:keys [port] :or {port 3000}}]
+  (jetty/run-jetty #'app {:port port :join? false}))
+
+(defn start [& {:keys [port] :or {port 3000}}]
+  (reset! xtdb-node* (start-xtdb!))
+  (println "STARTED XTDB")
+  (reset! server* (jetty/run-jetty (app @xtdb-node*) {:port port :join? false}))
+  (println "STARTED SERVER")
   (println "server running in port 3000"))
 
+(defn stop []
+  (.stop @server*)
+  (.close @xtdb-node*))
+
 (comment
-  (start))
+  (start)
+;; das
+  (stop)
+;; asd
+  (do (stop)
+      (start))
+  )

@@ -6,9 +6,9 @@
         com.xtdb/xtdb-core {:mvn/version "1.21.0"}
         com.xtdb/xtdb-rocksdb {:mvn/version "1.21.0"}
         ring/ring-jetty-adapter {:mvn/version "1.7.1"}
-        metosin/reitit {:mvn/version "0.5.18"}
-        clj-gatling/clj-gatling {:mvn/version "0.17.5"}
-        org.clojure/core.async {:mvn/version "1.5.648"}}
+        metosin/reitit {:mvn/version "0.5.18" :exclusions [metosin/malli]}
+        metosin/malli {:mvn/version "0.8.9"}
+        clj-gatling/clj-gatling {:mvn/version "0.17.5"}}
  :aliases
  {;; :run-m {:main-opts ["-m" "oscar.promises-made-and-broken"]}
   :run-x {:ns-default example.server

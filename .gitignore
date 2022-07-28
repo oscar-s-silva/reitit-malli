@@ -9,3 +9,9 @@ pom.xml.asc
 /.nrepl-port
 .hgignore
 .hg/
+
+/.clj-kondo/
+/.cpcache/
+/.dir-locals.el
+/.lsp/
+/data/

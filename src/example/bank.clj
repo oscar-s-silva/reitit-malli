@@ -4,34 +4,38 @@
             [clojure.core.match :refer [match]])
   (:import java.util.UUID))
 
-(defn- un-ns-keys [m]
+(defn un-ns-keys [m]
   (update-keys m (comp keyword name)))
 
-(defn create-account [node  name]
-  (-> (db/sync-put-account! node {:account-name name})
-      (rename-keys {:xt/id :account-number})
-      un-ns-keys))
+(def xtdb-data->api-data (comp un-ns-keys
+                            #(rename-keys % {:xt/id :account-number})))
+
+(defn create-account [node name]
+  (xtdb-data->api-data #p (db/sync-put-account! node {:account-name name})))
 
 (defn view-account [node account-id]
-  (db/sync-get-entity! node account-id))
+  (xtdb-data->api-data (db/sync-get-entity! node account-id)))
 
 (defn deposit [node account-id amount]
-  (db/sync-transfer! node {:sender-id db/global-reserve-id
-                           :recipient-id account-id
-                           :amount amount
-                           :kind :deposit}))
+  (when (db/sync-transfer! node {:sender-id db/global-reserve-id
+                            :recipient-id account-id
+                            :amount amount
+                            :kind :deposit})
+    (view-account node account-id)))
 
 (defn withdraw [node account-id amount]
-  (db/sync-transfer! node {:sender-id account-id
-                           :recipient-id db/global-reserve-id
-                           :amount amount
-                           :kind :withdraw}))
+  (when (db/sync-transfer! node {:sender-id account-id
+                                 :recipient-id db/global-reserve-id
+                                 :amount amount
+                                 :kind :withdraw})
+    (view-account node account-id)))
 
 (defn transfer [node sender-id recipient-id amount]
-  (db/sync-transfer! node {:sender-id sender-id
-                           :recipient-id recipient-id
-                           :amount amount
-                           :kind :transfer}))
+  (when (db/sync-transfer! node {:sender-id sender-id
+                                 :recipient-id recipient-id
+                                 :amount amount
+                                 :kind :transfer})
+    (view-account node sender-id)))
 
 (defn transactors [log-entry]
   (-> log-entry
@@ -63,8 +67,8 @@
                  [:recipient :transfer] (str "receive from "
                                              (:sender-id (transactors log-entry))))))))
 
-(defn audit-log [node account-id]
-  (->> (db/full-audit-log! node)
+(defn audit-log [node account-id & args]
+  (->> (apply db/full-audit-log! node args)
        (sequence (comp (filter (partial participant account-id))
-                       (map-indexed (partial format-entry account-id))))
+                    (map-indexed (partial format-entry account-id))))
        reverse))
