@@ -18,9 +18,11 @@
             [muuntaja.core :as m]
             [clojure.java.io :as io]
             malli.core
-            [malli.util :as mu]))
+            [malli.util :as mu]
+            [xtdb.api :as xt]))
 
-()
+;; TODO make node persist
+;; (def node (xt/start-node {}))
 
 (def app
   (ring/ring-handler
@@ -68,7 +70,7 @@
                :handler (fn [{{{:keys [name]} :body} :parameters}]
                            ;; TODO implement logic
 
-                          (let [account (bank/create-account! name)]
+                          (let [account {} #_(bank/create-account node name)]
                             {:status 200
                              :body account}))}}]
       ["/account/:id"
@@ -82,7 +84,7 @@
                                             :balance (every-pred int (comp not neg?))}]}}
               :handler (fn [{{{account-id :id} :path} :parameters}]
                            ;; TODO implement logic
-                         (let [account (bank/view-account! account-id)]
+                         (let [account (bank/view-account account-id)]
                            {:status 200
                             :body account}))}}
        ["/deposit"
@@ -95,7 +97,7 @@
                                               :name string?,
                                               :balance nat-int?}]}}
                 :handler (fn [{{{:keys [amount]} :body account-id :id} :parameters}]
-                           (let [account (bank/account-deposit! account-id amount)]
+                           (let [account (bank/deposit account-id amount)]
                              {:status 200
                               :body account}))}}]
        ["/withdraw"
@@ -108,7 +110,7 @@
                                               :name string?,
                                               :balance nat-int?}]}}
                 :handler (fn [{{{:keys [amount]} :body account-id :id} :parameters}]
-                           (let [account (bank/account-withdraw! account-id amount)]
+                           (let [account (bank/withdraw account-id amount)]
                              {:status 200
                               :body account}))}}]
        ["/send"
@@ -127,7 +129,7 @@
                                   [:balance nat-int?]]}}}
          :handler (fn [{{{amount :amount recipient-id :account-number} :body sender-id :id} :parameters}]
 
-                    (let [account (bank/transfer! sender-id recipient-id amount)]
+                    (let [account (bank/transfer sender-id recipient-id amount)]
                       {:status 200
                        :body {:name "Mr. Black"
                               :account-number 1
