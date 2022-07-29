@@ -32,14 +32,16 @@
              :handler (swagger/create-swagger-handler)}}]
      [""
       {:swagger {:tags ["banking"]}}
-
       ["/account"
        {:post {:summary "Create a bank account"
                :parameters {:body [:map
                                    [:name
                                     {:title "Name of account holder"}
                                     string?]]}
-               :responses {200 {:body [:map [:name string?]]}}
+               :responses {200 {:body [:map
+                                       [:name string?]
+                                       [:account-number uuid?]
+                                       [:balance nat-int?]]}}
                :handler (fn [{{{:keys [name]} :body} :parameters}]
                           (let [account (bank/create-account node name)]
                             {:status 200
@@ -50,83 +52,96 @@
                                   [:id
                                    {:name "Bank account ID"}
                                    uuid?]]}
-              :responses {200 {:body [:map {:account-number pos-int?,
-                                            :name string?,
-                                            :balance (every-pred int (comp not neg?))}]}}
+              :responses {200 {:body [:map
+                                      [:account-number uuid?]
+                                      [:name string?]
+                                      [:balance nat-int?]]}}
               :handler (fn [{{{account-id :id} :path} :parameters}]
                          (let [account (bank/view-account node account-id)]
                            {:status 200
-                            :body account}))}}
-       ["/deposit"
-        {:post {:summary "Deposit money to an account"
-                :parameters {:body [:map
-                                    [:amount
-                                     {:name "Amount to deposit"}
-                                     pos-int?]]}
-                :responses {200 {:body [:map {:account-number pos-int?,
-                                              :name string?,
-                                              :balance nat-int?}]}}
-                :handler (fn [{{{:keys [amount]} :body account-id :id} :parameters}]
-                           (let [account (bank/deposit node account-id amount)]
-                             {:status 200
-                              :body account}))}}]
-       ["/withdraw"
-        {:post {:summary "Withdraw money from an account"
-                :parameters {:body [:map
-                                    [:amount
-                                     {:name "Amount to withdraw"}
-                                     pos-int?]]}
-                :responses {200 {:body [:map {:account-number pos-int?,
-                                              :name string?,
-                                              :balance nat-int?}]}}
-                :handler (fn [{{{:keys [amount]} :body account-id :id} :parameters}]
-                           (let [account (bank/withdraw node account-id amount)]
-                             {:status 200
-                              :body account}))}}]
-       ["/send"
-        {:post {:summary "Transfer money between accounts"
-                :parameters {:body [:map
-                                    [:amount
-                                     {:name "Amount to transfer"}
-                                     pos-int?]
-                                    [:account-number
-                                     {:name "Account number of recipient"}
-                                     pos-int?]]}
-                :responses {200 {:body
-                                 [:map {:name "Account data of sender after tx"}
-                                  [:account-number pos-int?]
-                                  [:name string?]
-                                  [:balance nat-int?]]}}}
-         :handler (fn [{{{amount :amount recipient-id :account-number} :body
-                        sender-id :id} :parameters}]
-                    (let [account (bank/transfer node sender-id recipient-id amount)]
-                      {:status 200
-                       :body account}))}]
-       ["/audit"
-        {:get {:summary "Retrieve account audit log"
+                            :body account}))}}]
+      ["/account/:id/deposit"
+       {:post {:summary "Deposit money to an account"
+               :parameters {:path [:map
+                                   [:id
+                                    {:name "Bank account ID"}
+                                    uuid?]]
+                            :body [:map
+                                   [:amount
+                                    {:name "Amount to deposit"}
+                                    pos-int?]]}
+               :responses {200 {:body [:map {:account-number uuid?,
+                                             :name string?,
+                                             :balance nat-int?}]}}
+               :handler (fn [{{{:keys [amount]} :body {account-id :id} :path} :parameters}]
+                          (let [account (bank/deposit node account-id amount)]
+                            {:status 200
+                             :body account}))}}]
+      ["/account/:id/withdraw"
+       {:post {:summary "Withdraw money from an account"
+               :parameters {:path [:map
+                                   [:id
+                                    {:name "Bank account ID"}
+                                    uuid?]]
+                            :body [:map
+                                   [:amount
+                                    {:name "Amount to withdraw"}
+                                    pos-int?]]}
+               :responses {200 {:body [:map {:account-number uuid?,
+                                             :name string?,
+                                             :balance nat-int?}]}}
+               :handler (fn [{{{:keys [amount]} :body {account-id :id} :path} :parameters}]
+                          (let [account (bank/withdraw node account-id amount)]
+                            {:status 200
+                             :body account}))}}]
+      ["/account/:id/send"
+       {:post {:summary "Transfer money between accounts"
+               :parameters {:path [:map
+                                   [:id
+                                    {:name "Bank account ID of recipient"}
+                                    uuid?]]
+                            :body [:map
+                                   [:amount
+                                    {:name "Amount to transfer"}
+                                    pos-int?]
+                                   [:account-number
+                                    {:name "Account ID of recipient"}
+                                    uuid?]]}
                :responses {200 {:body
-                                (l/vector
-                                 (l/or {:sequence nat-int?
-                                        :credit pos-int?
-                                        :description string?}
-                                       {:sequence nat-int?
-                                        :debit pos-int?
-                                        :description string?}))
+                                [:map {:name "Account data of sender after tx"}
+                                 [:account-number uuid?]
+                                 [:name string?]
+                                 [:balance nat-int?]]}}
+               :handler (fn [{{{amount :amount recipient-id :account-number} :body
+                               {sender-id :id} :path} :parameters}]
+                          (let [account (bank/transfer node sender-id recipient-id amount)]
+                            {:status 200
+                             :body account}))}}]
+      ["/account/:id/audit"
+       {:get {:summary "Retrieve account audit log"
+              :responses {200 {:body
+                               (l/vector
+                                (l/or {:sequence nat-int?
+                                       :credit pos-int?
+                                       :description string?}
+                                      {:sequence nat-int?
+                                       :debit pos-int?
+                                       :description string?}))
                                 ;; this doesn't work for some reason
-                                #_[:map
-                                   [:audit-trail
-                                    [:vector [:or
-                                              [:map
-                                               [:sequence nat-int?]
-                                               [:credit pos-int?]
-                                               [:description string?]]
-                                              [:map
-                                               [:sequence nat-int?]
-                                               [:debit pos-int?]
-                                               [:description string?]]]]]]}}
-               :handler (fn [{{{id :id} :path} :parameters}]
-                          {:status 200
-                           :body (bank/audit-log node id)})}}]]]]
+                               #_[:map
+                                  [:audit-trail
+                                   [:vector [:or
+                                             [:map
+                                              [:sequence nat-int?]
+                                              [:credit pos-int?]
+                                              [:description string?]]
+                                             [:map
+                                              [:sequence nat-int?]
+                                              [:debit pos-int?]
+                                              [:description string?]]]]]]}}
+              :handler (fn [{{{id :id} :path} :parameters}]
+                         {:status 200
+                          :body (bank/audit-log node id)})}}]]]
 
     {:exception pretty/exception
      :data {:coercion (reitit.coercion.malli/create

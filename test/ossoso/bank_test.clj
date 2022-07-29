@@ -1,10 +1,10 @@
-(ns example.server-test
+(ns ossoso.server-test
   (:require [clojure.test :refer [deftest testing is use-fixtures]]
             [clojure.walk :refer [stringify-keys]]
             [xtdb.api :as xt]
             [jsonista.core :as j]
-            [example.bank :as bank]
-            [example.bank-db :as db]))
+            [ossoso.bank :as bank]
+            [ossoso.bank-db :as db]))
 
 
 ;; node symbol bound in fixture
@@ -97,4 +97,7 @@
       (let [[a b] (create-accounts @node*)
             _ (bank/deposit @node* a 10)
             _ (bank/deposit @node* b 10)]
-        (is (thrown? Exception (bank/transfer @node* a b -10)))))))
+        (is (thrown? Exception (bank/transfer @node* a b -10)))))
+    (testing "deposit amount is zero"
+      (let [[a] (create-accounts @node*)]
+        (is (thrown? Exception (bank/deposit @node* a 0)))))))

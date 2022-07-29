@@ -58,4 +58,4 @@
                             :request account-deposit-request}
                            {:name "View account info"
                             :request view-account-request}]}]}
-     {:concurrency 1000})
+     {:concurrency 1000})))

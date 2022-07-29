@@ -7,21 +7,20 @@
         com.xtdb/xtdb-rocksdb {:mvn/version "1.21.0"}
         ring/ring-jetty-adapter {:mvn/version "1.7.1"}
         metosin/reitit {:mvn/version "0.5.18" :exclusions [metosin/malli]}
-        metosin/malli {:mvn/version "0.8.9"}
-        clj-gatling/clj-gatling {:mvn/version "0.17.5"}}
+        metosin/malli {:mvn/version "0.8.9"}}
  :aliases
- {;; :run-m {:main-opts ["-m" "oscar.promises-made-and-broken"]}
-  :run-x {:ns-default ossoso.server
-          :exec-fn start
-          ;; :exec-args {:name "Clojure"}
-          }
-  :build {:deps {io.github.seancorfield/build-clj
-                 {:git/tag "v0.6.3" :git/sha "9b8e09b"
-                  ;; since we're building an app uberjar, we do not
-                  ;; need deps-deploy for clojars.org deployment:
-                  :deps/root "slim"}}
-          :ns-default build}
+ {:run-x {:ns-default ossoso.server
+          :exec-fn start}
+  ;; :build {:deps {io.github.seancorfield/build-clj
+  ;;                {:git/tag "v0.6.3" :git/sha "9b8e09b"
+  ;;                 ;; since we're building an app uberjar, we do not
+  ;;                 ;; need deps-deploy for clojars.org deployment:
+  ;;                 :deps/root "slim"}}
+  ;;         :ns-default build}
   :test {:extra-paths ["test"]
          :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}
+                      clj-gatling/clj-gatling {:mvn/version "0.17.5"}
                       io.github.cognitect-labs/test-runner
-                      {:git/tag "v0.5.1" :git/sha "dfb30dd"}}}}}
+                      {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
+         :main-opts ["-m" "cognitect.test-runner"]
+         :exec-fn cognitect.test-runner.api/test}}}

@@ -10,11 +10,11 @@
 (def xtdb-data->api-data (comp un-ns-keys
                             #(rename-keys % {:xt/id :account-number})))
 
-(defn create-account [node name]
-  (xtdb-data->api-data (db/sync-put-account! node {:account-name name})))
-
 (defn view-account [node account-id]
   (xtdb-data->api-data (db/sync-get-entity! node account-id)))
+
+(defn create-account [node name]
+  (xtdb-data->api-data (db/sync-put-account! node {:account-name name})))
 
 (defn deposit [node account-id amount]
   (when (db/sync-transfer! node {:sender-id db/global-reserve-id

@@ -93,7 +93,7 @@
                           :message  "sender balance insufficient"
                           :sender-balance in-balance
                           :transfer-amount amount}]]
-         (neg? amount) ; transfer argument order denotes direction of transfer
+         (not (pos-int? amount)) ; transfer argument order denotes direction of transfer
          [[:xtdb.api/put {:xt/id correlation-id
                           :message  "only transfer of positive amounts is allowed"
                           :sender-balance in-balance
