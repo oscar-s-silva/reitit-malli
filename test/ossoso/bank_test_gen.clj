@@ -56,11 +56,11 @@
 (defn compute-tx-data-result [type-rows]
   (reduce (fn [acc {:keys [transfer-v]}]
             (-> (let [change-m (zipmap [:global :alice :bob] transfer-v)
-                   acc' (merge-with + acc change-m)]
-               (cond
-                ;; non global reserve results in negative balance
-                 (some neg? (vals (select-keys acc' [:alice :bob]))) acc
-                 :else (update acc' :valid-tx-count inc)))))
+                      acc' (merge-with + acc change-m)]
+                  (cond
+                    ;; non global reserve results in negative balance
+                    (some neg? (vals (select-keys acc' [:alice :bob]))) acc
+                    :else (update acc' :valid-tx-count inc)))))
           {:global 0 :alice 0 :bob 0 :valid-tx-count 0 :transfer-v [0 0 0]}
           type-rows))
 
@@ -82,8 +82,6 @@
     :withdraw (bank/withdraw node account-owner amount)
     :transfer (bank/transfer node account-owner recipient amount)))
 
-()
-
 (defspec endebting-txs-aborted
   {:max-size 2}
   (prop/for-all [trial tx-matrix-gen]
@@ -104,7 +102,6 @@
                                            valid-tx-count))]
                    (let [end-balances (mapv (comp :account/balance (partial bank/view-account *node*))
                                             [gid aid bid])]
-
                      (testing "invalid txs don't contribute to final sums "
                        (is (= end-balances (mapv valid-txs [:global :alice :bob]))))
                      (testing "balances add to zero"

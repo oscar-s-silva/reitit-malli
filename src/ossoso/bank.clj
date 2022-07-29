@@ -11,7 +11,7 @@
                             #(rename-keys % {:xt/id :account-number})))
 
 (defn create-account [node name]
-  (xtdb-data->api-data #p (db/sync-put-account! node {:account-name name})))
+  (xtdb-data->api-data (db/sync-put-account! node {:account-name name})))
 
 (defn view-account [node account-id]
   (xtdb-data->api-data (db/sync-get-entity! node account-id)))

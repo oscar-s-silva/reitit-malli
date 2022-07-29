@@ -98,4 +98,3 @@
             _ (bank/deposit @node* a 10)
             _ (bank/deposit @node* b 10)]
         (is (thrown? Exception (bank/transfer @node* a b -10)))))))
-

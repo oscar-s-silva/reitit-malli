@@ -1,4 +1,4 @@
-(ns example.util
+(ns ossoso.util
   (:require [example.bank :as bank]))
 
 (def test-account-ids {:allisson #uuid "00000000-0000-2000-8000-000000000000"

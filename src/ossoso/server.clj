@@ -14,7 +14,6 @@
             [ossoso.bank :as bank]
             [muuntaja.core :as m]
             [clojure.java.io :as io]
-            ;; malli.core
             [malli.util :as mu]
             [malli.experimental.lite :as l]
             [xtdb.api :as xt]))
@@ -42,8 +41,6 @@
                                     string?]]}
                :responses {200 {:body [:map [:name string?]]}}
                :handler (fn [{{{:keys [name]} :body} :parameters}]
-                           ;; TODO implement logic
-
                           (let [account (bank/create-account node name)]
                             {:status 200
                              :body account}))}}]
@@ -57,7 +54,6 @@
                                             :name string?,
                                             :balance (every-pred int (comp not neg?))}]}}
               :handler (fn [{{{account-id :id} :path} :parameters}]
-                           ;; TODO implement logic
                          (let [account (bank/view-account node account-id)]
                            {:status 200
                             :body account}))}}
@@ -101,13 +97,11 @@
                                   [:account-number pos-int?]
                                   [:name string?]
                                   [:balance nat-int?]]}}}
-         :handler (fn [{{{amount :amount recipient-id :account-number} :body sender-id :id} :parameters}]
-
+         :handler (fn [{{{amount :amount recipient-id :account-number} :body
+                        sender-id :id} :parameters}]
                     (let [account (bank/transfer node sender-id recipient-id amount)]
                       {:status 200
-                       :body {:name "Mr. Black"
-                              :account-number 1
-                              :balance 45}}))}]
+                       :body account}))}]
        ["/audit"
         {:get {:summary "Retrieve account audit log"
                :responses {200 {:body
@@ -132,18 +126,7 @@
                                                [:description string?]]]]]]}}
                :handler (fn [{{{id :id} :path} :parameters}]
                           {:status 200
-                           :body {:audit-trail [{:sequence 3,
-                                                 :debit 20,
-                                                 :description "withdraw"},
-                                                {:sequence 2,
-                                                 :credit 10,
-                                                 :description "receive from *800"},
-                                                {:sequence 1,
-                                                 :debit 5,
-                                                 :description "send to *900"},
-                                                {:sequence 0,
-                                                 :credit 100,
-                                                 :description "deposit"}]}})}}]]]]
+                           :body (bank/audit-log node id)})}}]]]]
 
     {:exception pretty/exception
      :data {:coercion (reitit.coercion.malli/create
@@ -185,7 +168,7 @@
 
 (defn start-xtdb!
   "Use RocksDB for tx-log, document-store, and index-store
-  source from https://docs.xtdb.com/guides/quickstart/"
+  source: https://docs.xtdb.com/guides/quickstart/"
   []
   (letfn [(kv-store [dir]
             {:kv-store {:xtdb/module 'xtdb.rocksdb/->kv-store

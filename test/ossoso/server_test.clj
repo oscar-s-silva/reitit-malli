@@ -38,8 +38,7 @@
     [(= status 200) (assoc context :acc-id account-number :acc-name test-acc-name)]))
 
 (defn account-deposit-request [context]
-  (let [
-        {{:keys [amount]} :body :keys [status]}
+  (let [{{:keys [amount]} :body :keys [status]}
         @(http/post (str "http://localhost:" server-test-port "/account/" (:acc-id context) "/deposit")
                     {:body {:amount test-deposit-amount}})]
     [(and (= status 200) (= test-deposit-amount amount)) (assoc context :deposit-amount amount)]))
@@ -59,4 +58,4 @@
                             :request account-deposit-request}
                            {:name "View account info"
                             :request view-account-request}]}]}
-     {:concurrency 10})
+     {:concurrency 1000})

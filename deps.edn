@@ -11,7 +11,7 @@
         clj-gatling/clj-gatling {:mvn/version "0.17.5"}}
  :aliases
  {;; :run-m {:main-opts ["-m" "oscar.promises-made-and-broken"]}
-  :run-x {:ns-default example.server
+  :run-x {:ns-default ossoso.server
           :exec-fn start
           ;; :exec-args {:name "Clojure"}
           }
